@@ -45,7 +45,7 @@ stages:
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
                       helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
-                        --namespace volt-store-dev --create-namespace \
+                        --namespace volt-store-dev \
                         --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-dev.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \
@@ -79,7 +79,7 @@ stages:
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
                       helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
-                        --namespace volt-store-staging --create-namespace \
+                        --namespace volt-store-staging \
                         --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-staging.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \
@@ -113,7 +113,7 @@ stages:
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
                       helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
-                        --namespace volt-store-prod --create-namespace \
+                        --namespace volt-store-prod \
                         --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-prod.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \

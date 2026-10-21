@@ -13,7 +13,7 @@ service:
 
 ingress:
   enabled: true
-  className: azure/application-gateway
+  className: azure-application-gateway
   host: store.example.com
   tls:
     enabled: false

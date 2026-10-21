@@ -21,6 +21,7 @@ spec:
         {{- include "volt-store.selectorLabels" . | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: {{ include "volt-store.fullname" . }}
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true

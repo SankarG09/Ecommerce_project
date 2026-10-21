@@ -1,0 +1,137 @@
+name: volt-store-infra-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/terraform/**
+      - azure-pipelines-infra.yml
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/terraform/**
+      - azure-pipelines-infra.yml
+
+variables:
+  - group: volt-store-infrastructure
+  - name: terraformDirectory
+    value: infra/terraform
+  - name: terraformVersion
+    value: 1.10.5
+
+stages:
+  - stage: Plan
+    displayName: Format, validate, and plan infrastructure
+    jobs:
+      - job: TerraformPlan
+        pool:
+          name: $(privateAgentPool)
+        steps:
+          - checkout: self
+            clean: true
+
+          - bash: |
+              set -euo pipefail
+              actual="$(terraform version -json | jq -r .terraform_version)"
+              test "$actual" = "$(terraformVersion)"
+              terraform -chdir="$(terraformDirectory)" fmt -check -recursive
+              terraform -chdir="$(terraformDirectory)" init -input=false -reconfigure \
+                -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+                -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+                -backend-config="container_name=$(tfstateContainer)" \
+                -backend-config="key=volt-store-prod.tfstate" \
+                -backend-config="use_azuread_auth=true" \
+                -backend-config="use_oidc=true"
+              terraform -chdir="$(terraformDirectory)" validate
+            displayName: Verify toolchain, initialize remote state, and validate
+
+          - task: AzureCLI@2
+            displayName: Create reviewed Terraform plan
+            inputs:
+              azureSubscription: $(terraformServiceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -euo pipefail
+                export ARM_USE_OIDC=true
+                export ARM_USE_AZUREAD=true
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+                export TF_VAR_aks_admin_group_object_ids='$(aksAdminGroupObjectIdsJson)'
+                export TF_VAR_acr_push_principal_object_ids='$(acrPushPrincipalObjectIdsJson)'
+                export TF_VAR_aks_deployment_principals='$(aksDeploymentPrincipalsJson)'
+                terraform -chdir="$(terraformDirectory)" init -input=false -reconfigure \
+                  -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+                  -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+                  -backend-config="container_name=$(tfstateContainer)" \
+                  -backend-config="key=volt-store-prod.tfstate" \
+                  -backend-config="use_azuread_auth=true" \
+                  -backend-config="use_oidc=true"
+                terraform -chdir="$(terraformDirectory)" plan -input=false -lock-timeout=5m \
+                  -out="$(Build.ArtifactStagingDirectory)/volt-store-prod.tfplan"
+            env:
+              ARM_USE_OIDC: "true"
+              ARM_USE_AZUREAD: "true"
+              TF_IN_AUTOMATION: "true"
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish protected plan artifact
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/volt-store-prod.tfplan
+              artifact: terraform-plan
+
+  - stage: Apply
+    displayName: Apply reviewed infrastructure plan
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: TerraformApply
+        displayName: Apply Terraform plan
+        pool:
+          name: $(privateAgentPool)
+        environment: volt-store-infrastructure
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - download: current
+                  artifact: terraform-plan
+
+                - task: AzureCLI@2
+                  displayName: Apply the exact reviewed plan
+                  inputs:
+                    azureSubscription: $(terraformServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    addSpnToEnvironment: true
+                    inlineScript: |
+                      set -euo pipefail
+                      export ARM_USE_OIDC=true
+                      export ARM_USE_AZUREAD=true
+                      export ARM_CLIENT_ID="$servicePrincipalId"
+                      export ARM_TENANT_ID="$tenantId"
+                      export ARM_OIDC_TOKEN="$idToken"
+                      export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+                      terraform -chdir="$(terraformDirectory)" init -input=false -reconfigure \
+                        -backend-config="resource_group_name=$(tfstateResourceGroup)" \
+                        -backend-config="storage_account_name=$(tfstateStorageAccount)" \
+                        -backend-config="container_name=$(tfstateContainer)" \
+                        -backend-config="key=volt-store-prod.tfstate" \
+                        -backend-config="use_azuread_auth=true" \
+                        -backend-config="use_oidc=true"
+                      terraform -chdir="$(terraformDirectory)" apply -input=false -lock-timeout=5m -auto-approve \
+                        "$(Pipeline.Workspace)/terraform-plan/volt-store-prod.tfplan"
+                  env:
+                    ARM_USE_OIDC: "true"
+                    ARM_USE_AZUREAD: "true"
+                    TF_IN_AUTOMATION: "true"

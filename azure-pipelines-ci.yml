@@ -88,8 +88,12 @@ stages:
                 docker push "$image"
                 digest="$(az acr repository show --name "$(acrName)" --image "volt-store:$(Build.SourceVersion)" --query digest --output tsv)"
                 test -n "$digest"
-                printf '##vso[task.setvariable variable=imageDigest;isOutput=true]%s\n' "$digest"
                 printf 'Image: %s@%s\n' "$(acrLoginServer)/volt-store" "$digest"
-            name: publish
-        variables:
-          imageTag: $(Build.SourceVersion)
+                mkdir -p "$(Build.ArtifactStagingDirectory)/release-bundle/helm"
+                cp -R deploy/helm/volt-store deploy/helm/values-dev.yaml deploy/helm/values-staging.yaml deploy/helm/values-prod.yaml \
+                  "$(Build.ArtifactStagingDirectory)/release-bundle/helm/"
+          - task: PublishPipelineArtifact@1
+            displayName: Publish immutable deployment bundle
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/release-bundle
+              artifact: release-bundle

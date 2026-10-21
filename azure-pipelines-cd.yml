@@ -32,7 +32,8 @@ stages:
           runOnce:
             deploy:
               steps:
-                - checkout: self
+                - download: ci
+                  artifact: release-bundle
                 - task: AzureCLI@2
                   displayName: Helm upgrade and smoke test
                   inputs:
@@ -43,9 +44,9 @@ stages:
                       set -euo pipefail
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
-                      helm upgrade --install volt-store "$(chartPath)" \
+                      helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
                         --namespace volt-store-dev --create-namespace \
-                        --values deploy/helm/values-dev.yaml \
+                        --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-dev.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \
                         --atomic --wait --timeout 10m
@@ -65,7 +66,8 @@ stages:
           runOnce:
             deploy:
               steps:
-                - checkout: self
+                - download: ci
+                  artifact: release-bundle
                 - task: AzureCLI@2
                   displayName: Helm upgrade and smoke test
                   inputs:
@@ -76,9 +78,9 @@ stages:
                       set -euo pipefail
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
-                      helm upgrade --install volt-store "$(chartPath)" \
+                      helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
                         --namespace volt-store-staging --create-namespace \
-                        --values deploy/helm/values-staging.yaml \
+                        --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-staging.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \
                         --atomic --wait --timeout 10m
@@ -98,7 +100,8 @@ stages:
           runOnce:
             deploy:
               steps:
-                - checkout: self
+                - download: ci
+                  artifact: release-bundle
                 - task: AzureCLI@2
                   displayName: Helm upgrade and smoke test
                   inputs:
@@ -109,9 +112,9 @@ stages:
                       set -euo pipefail
                       az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
                       kubelogin convert-kubeconfig -l azurecli
-                      helm upgrade --install volt-store "$(chartPath)" \
+                      helm upgrade --install volt-store "$(Pipeline.Workspace)/ci/release-bundle/helm/volt-store" \
                         --namespace volt-store-prod --create-namespace \
-                        --values deploy/helm/values-prod.yaml \
+                        --values "$(Pipeline.Workspace)/ci/release-bundle/helm/values-prod.yaml" \
                         --set-string image.repository="$(acrLoginServer)/volt-store" \
                         --set-string image.tag="$(imageTag)" \
                         --atomic --wait --timeout 10m

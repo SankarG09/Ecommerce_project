@@ -1,6 +1,6 @@
 locals {
-  resource_group_name = var.resource_group_name != "" ? var.resource_group_name : "rg-${var.name_prefix}-${var.environment}"
-  cluster_name        = "aks-${var.name_prefix}-${var.environment}"
+  resource_group_name  = var.resource_group_name != "" ? var.resource_group_name : "rg-${var.name_prefix}-${var.environment}"
+  cluster_name         = "aks-${var.name_prefix}-${var.environment}"
   virtual_network_name = "vnet-${var.name_prefix}-${var.environment}"
   common_tags = {
     application = "volt-store"

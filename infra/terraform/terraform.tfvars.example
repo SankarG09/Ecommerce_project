@@ -1,0 +1,18 @@
+location           = "eastus2"
+name_prefix        = "voltsupply"
+environment        = "prod"
+resource_group_name = "rg-voltsupply-prod"
+
+aks_admin_group_object_ids = [
+  "00000000-0000-0000-0000-000000000000"
+]
+
+acr_push_principal_object_ids = [
+  "00000000-0000-0000-0000-000000000000"
+]
+
+aks_deployment_principals = [
+  { object_id = "00000000-0000-0000-0000-000000000000", namespace = "volt-store-dev" },
+  { object_id = "00000000-0000-0000-0000-000000000000", namespace = "volt-store-staging" },
+  { object_id = "00000000-0000-0000-0000-000000000000", namespace = "volt-store-prod" }
+]

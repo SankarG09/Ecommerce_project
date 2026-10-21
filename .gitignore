@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.rc
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.env
+.env.*
+!.env.example
+.DS_Store

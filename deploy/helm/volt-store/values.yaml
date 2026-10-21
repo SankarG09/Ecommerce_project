@@ -1,0 +1,47 @@
+replicaCount: 2
+
+image:
+  repository: voltstore.azurecr.io/volt-store
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  port: 8080
+
+ingress:
+  enabled: true
+  className: azure/application-gateway
+  host: store.example.com
+  tls:
+    enabled: false
+    secretName: ""
+
+networkPolicy:
+  enabled: true
+  ingressCIDR: 10.40.3.0/24
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

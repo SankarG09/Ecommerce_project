@@ -1,0 +1,16 @@
+.git
+.gitignore
+.dockerignore
+.terraform
+infra
+node_modules
+dist
+coverage
+*.tfstate
+*.tfplan
+*.log
+.env*
+Readme.md
+DEPLOYMENT.md
+azure-pipelines*.yml
+deploy

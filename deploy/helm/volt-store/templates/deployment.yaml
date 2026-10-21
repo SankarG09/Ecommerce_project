@@ -65,7 +65,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: nginx-tmp
-              mountPath: /tmp/nginx
+              mountPath: /tmp
       volumes:
         - name: nginx-tmp
           emptyDir:

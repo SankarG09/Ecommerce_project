@@ -46,6 +46,11 @@ variable "app_gateway_subnet_cidr" {
   default = "10.40.16.0/24"
 }
 
+variable "private_endpoint_subnet_cidr" {
+  type    = string
+  default = "10.40.17.0/24"
+}
+
 variable "agent_subnet_cidr" {
   description = "Subnet for private, self-hosted Azure DevOps agents."
   type        = string

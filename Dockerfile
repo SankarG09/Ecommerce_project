@@ -9,8 +9,7 @@ RUN npm run build
 FROM nginx:stable-alpine AS runtime
 
 RUN rm -f /etc/nginx/conf.d/default.conf \
-    && mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi \
-    && chown -R 101:101 /usr/share/nginx/html /var/cache/nginx /var/run /tmp/nginx
+    && chown -R 101:101 /usr/share/nginx/html /var/cache/nginx /var/run
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build --chown=101:101 /app/dist /usr/share/nginx/html
 

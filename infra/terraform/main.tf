@@ -54,6 +54,13 @@ resource "azurerm_subnet" "application_gateway" {
   address_prefixes     = [var.app_gateway_subnet_cidr]
 }
 
+resource "azurerm_subnet" "private_endpoints" {
+  name                 = "snet-private-endpoints"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.private_endpoint_subnet_cidr]
+}
+
 resource "azurerm_subnet" "agents" {
   name                 = "snet-devops-agents"
   resource_group_name  = azurerm_resource_group.main.name
@@ -104,17 +111,7 @@ resource "azurerm_container_registry" "main" {
   sku                           = "Premium"
   admin_enabled                 = false
   public_network_access_enabled = false
-  network_rule_bypass_option    = "AzureServices"
   tags                          = local.common_tags
-
-  network_rule_set {
-    default_action = "Deny"
-
-    virtual_network {
-      action    = "Allow"
-      subnet_id = azurerm_subnet.agents.id
-    }
-  }
 }
 
 resource "azurerm_private_dns_zone" "acr" {
@@ -136,7 +133,7 @@ resource "azurerm_private_endpoint" "acr" {
   name                = "pe-${var.name_prefix}-${var.environment}-acr"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  subnet_id           = azurerm_subnet.aks.id
+  subnet_id           = azurerm_subnet.private_endpoints.id
   tags                = local.common_tags
 
   private_service_connection {

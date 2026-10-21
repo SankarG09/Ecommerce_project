@@ -1,0 +1,95 @@
+name: volt-store-ci-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - DEPLOYMENT.md
+      - infra/**
+      - deploy/**
+      - azure-pipelines-cd.yml
+      - azure-pipelines-infra.yml
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  nodeVersion: "22.x"
+  chartPath: deploy/helm/volt-store
+
+stages:
+  - stage: Validate
+    displayName: Validate application and chart
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            clean: true
+            fetchDepth: 1
+
+          - task: UseNode@1
+            inputs:
+              version: $(nodeVersion)
+
+          - script: npm ci --no-audit --no-fund
+            displayName: Install locked dependencies
+
+          - script: npm audit --audit-level=high
+            displayName: Check dependency advisories
+
+          - script: npm run build
+            displayName: Build Vite application
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: "3.16.4"
+
+          - script: |
+              set -euo pipefail
+              for environment in dev staging prod; do
+                helm lint "$(chartPath)" -f "deploy/helm/values-${environment}.yaml"
+                helm template volt-store "$(chartPath)" \
+                  --namespace "volt-store-${environment}" \
+                  -f "deploy/helm/values-${environment}.yaml" >/dev/null
+              done
+            displayName: Lint and render environment charts
+
+  - stage: Publish
+    displayName: Build and publish immutable image
+    dependsOn: Validate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: PublishImage
+        pool:
+          name: $(privateAgentPool)
+        steps:
+          - checkout: self
+            clean: true
+
+          - task: AzureCLI@2
+            displayName: Build, scan, and push to private ACR
+            inputs:
+              azureSubscription: $(acrPushServiceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name "$(acrName)"
+                image="$(acrLoginServer)/volt-store:$(Build.SourceVersion)"
+                docker build --pull --tag "$image" .
+                trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL "$image"
+                docker push "$image"
+                digest="$(az acr repository show --name "$(acrName)" --image "volt-store:$(Build.SourceVersion)" --query digest --output tsv)"
+                test -n "$digest"
+                printf '##vso[task.setvariable variable=imageDigest;isOutput=true]%s\n' "$digest"
+                printf 'Image: %s@%s\n' "$(acrLoginServer)/volt-store" "$digest"
+            name: publish
+        variables:
+          imageTag: $(Build.SourceVersion)

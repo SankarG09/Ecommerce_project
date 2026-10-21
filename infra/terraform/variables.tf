@@ -78,6 +78,21 @@ variable "aks_vm_size" {
   default = "Standard_D4s_v5"
 }
 
+variable "aks_application_vm_size" {
+  type    = string
+  default = "Standard_D4s_v5"
+}
+
+variable "aks_application_min_node_count" {
+  type    = number
+  default = 3
+}
+
+variable "aks_application_max_node_count" {
+  type    = number
+  default = 10
+}
+
 variable "aks_min_node_count" {
   type    = number
   default = 3

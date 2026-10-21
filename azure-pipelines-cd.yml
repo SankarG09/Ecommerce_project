@@ -1,0 +1,118 @@
+name: volt-store-cd-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+resources:
+  pipelines:
+    - pipeline: ci
+      source: Volt Store CI
+      trigger:
+        branches:
+          include:
+            - main
+
+variables:
+  - group: volt-store-deployment
+  - name: imageTag
+    value: $[ resources.pipeline.ci.sourceCommit ]
+  - name: chartPath
+    value: deploy/helm/volt-store
+
+stages:
+  - stage: DeployDev
+    displayName: Deploy development
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy immutable image to dev
+        pool:
+          name: $(privateAgentPool)
+        environment: volt-store-dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: Helm upgrade and smoke test
+                  inputs:
+                    azureSubscription: $(aksDevServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
+                      kubelogin convert-kubeconfig -l azurecli
+                      helm upgrade --install volt-store "$(chartPath)" \
+                        --namespace volt-store-dev --create-namespace \
+                        --values deploy/helm/values-dev.yaml \
+                        --set-string image.repository="$(acrLoginServer)/volt-store" \
+                        --set-string image.tag="$(imageTag)" \
+                        --atomic --wait --timeout 10m
+                      curl --fail --retry 12 --retry-delay 10 --retry-all-errors "https://$(devStoreHost)/healthz"
+
+  - stage: DeployStaging
+    displayName: Deploy staging
+    dependsOn: DeployDev
+    condition: succeeded()
+    jobs:
+      - deployment: Deploy
+        displayName: Promote the same image to staging
+        pool:
+          name: $(privateAgentPool)
+        environment: volt-store-staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: Helm upgrade and smoke test
+                  inputs:
+                    azureSubscription: $(aksStagingServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
+                      kubelogin convert-kubeconfig -l azurecli
+                      helm upgrade --install volt-store "$(chartPath)" \
+                        --namespace volt-store-staging --create-namespace \
+                        --values deploy/helm/values-staging.yaml \
+                        --set-string image.repository="$(acrLoginServer)/volt-store" \
+                        --set-string image.tag="$(imageTag)" \
+                        --atomic --wait --timeout 10m
+                      curl --fail --retry 12 --retry-delay 10 --retry-all-errors "https://$(stagingStoreHost)/healthz"
+
+  - stage: DeployProduction
+    displayName: Deploy production
+    dependsOn: DeployStaging
+    condition: succeeded()
+    jobs:
+      - deployment: Deploy
+        displayName: Promote the same image to production
+        pool:
+          name: $(privateAgentPool)
+        environment: volt-store-prod
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: AzureCLI@2
+                  displayName: Helm upgrade and smoke test
+                  inputs:
+                    azureSubscription: $(aksProdServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      az aks get-credentials --resource-group "$(resourceGroupName)" --name "$(aksName)" --overwrite-existing --only-show-errors
+                      kubelogin convert-kubeconfig -l azurecli
+                      helm upgrade --install volt-store "$(chartPath)" \
+                        --namespace volt-store-prod --create-namespace \
+                        --values deploy/helm/values-prod.yaml \
+                        --set-string image.repository="$(acrLoginServer)/volt-store" \
+                        --set-string image.tag="$(imageTag)" \
+                        --atomic --wait --timeout 10m
+                      curl --fail --retry 12 --retry-delay 10 --retry-all-errors "https://$(prodStoreHost)/healthz"

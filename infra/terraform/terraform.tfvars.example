@@ -3,6 +3,8 @@ name_prefix        = "voltsupply"
 environment        = "prod"
 resource_group_name = "rg-voltsupply-prod"
 private_endpoint_subnet_cidr = "10.40.17.0/24"
+aks_application_min_node_count = 3
+aks_application_max_node_count = 10
 
 aks_admin_group_object_ids = [
   "00000000-0000-0000-0000-000000000000"

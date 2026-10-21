@@ -1,0 +1,12 @@
+ingress:
+  host: staging-store.example.com
+  tls:
+    enabled: true
+    secretName: volt-store-tls
+
+networkPolicy:
+  ingressCIDR: 10.40.16.0/24
+
+autoscaling:
+  minReplicas: 2
+  maxReplicas: 6

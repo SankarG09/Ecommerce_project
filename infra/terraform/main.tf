@@ -316,6 +316,27 @@ resource "azurerm_kubernetes_cluster" "main" {
   depends_on = [azurerm_subnet_nat_gateway_association.aks]
 }
 
+resource "azurerm_kubernetes_cluster_node_pool" "application" {
+  name                  = "apps"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = var.aks_application_vm_size
+  mode                  = "User"
+  auto_scaling_enabled  = true
+  min_count             = var.aks_application_min_node_count
+  max_count             = var.aks_application_max_node_count
+  vnet_subnet_id        = azurerm_subnet.aks.id
+  zones                 = var.availability_zones
+  os_sku                = "Ubuntu"
+  max_pods              = 50
+  node_labels = {
+    "workload" = "application"
+  }
+  upgrade_settings {
+    max_surge = "33%"
+  }
+  tags = local.common_tags
+}
+
 resource "azurerm_role_assignment" "acr_pull" {
   scope                = azurerm_container_registry.main.id
   role_definition_name = "AcrPull"
